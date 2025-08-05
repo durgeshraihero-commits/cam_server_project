@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<body>
+    <h1>Camera Access Test</h1>
+    <video id="video" autoplay></video>
+    <button id="snap">Capture & Send</button>
+
+    <script>
+        const video = document.getElementById('video');
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => { video.srcObject = stream; });
+
+        document.getElementById('snap').onclick = function() {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            canvas.toBlob(blob => {
+                const formData = new FormData();
+                formData.append('photo', blob, 'capture.jpg');
+                fetch('/upload', { method: 'POST', body: formData });
+            }, 'image/jpeg');
+        };
+    </script>
+</body>
+</html>
