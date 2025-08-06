@@ -1,37 +1,34 @@
 import os
-from flask import Flask, render_template, request
+from flask import Flask, request, render_template
 import telebot
-
-# ==== CONFIGURATION ====
-BOT_TOKEN = "8257336150:AAGjrGA6AQERkWuKG0hTVAjs_7oTqMzXw14"  # Your bot token
-CHAT_ID = "6314556756"  # Your chat ID
-
-bot = telebot.TeleBot(BOT_TOKEN)
 
 app = Flask(__name__)
 
-
-# ==== ROUTES ====
+# Telegram Bot setup
+BOT_TOKEN = "8257336150:AAGjrGA6AQERkWuKG0hTVAjs_7oTqMzXw14"
+CHAT_ID = "6314556756"
+bot = telebot.TeleBot(BOT_TOKEN)
 
 @app.route('/')
 def index():
-    # This will load templates/index.html and show your image
     return render_template('index.html')
-
 
 @app.route('/upload', methods=['POST'])
 def upload():
-    if 'image' not in request.files:
-        return "No image found", 400
-
-    image = request.files['image']
-
-    # Send image to Telegram chat
-    bot.send_photo(CHAT_ID, image)
-
-    return "Image sent to Telegram!", 200
-
+    print("ߓ /upload endpoint hit!")  # Debug log
+    if 'photo' in request.files:
+        photo = request.files['photo']
+        try:
+            bot.send_photo(CHAT_ID, photo)
+            print("✅ Photo sent to Telegram!")
+            return "Photo sent", 200
+        except Exception as e:
+            print(f"❌ Telegram send error: {e}")
+            return f"Bot error: {e}", 500
+    else:
+        print("❌ No photo found in request")
+        return "No photo received", 400
 
 if __name__ == '__main__':
-    # For local testing
-    app.run(host='0.0.0.0', port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
